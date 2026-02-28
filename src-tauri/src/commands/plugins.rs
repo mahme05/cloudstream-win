@@ -11,7 +11,7 @@
 //   - Err(string) -> sent to React as a rejected error
 
 use tauri::State;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use crate::AppState;
 use crate::plugin_runtime::{PluginInfo, SearchResult, Episode, StreamSource};
 

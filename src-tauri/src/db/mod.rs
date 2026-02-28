@@ -5,7 +5,7 @@
 // Think of sqlx like an ORM but you write plain SQL — 
 // it just maps results to Rust structs for you.
 
-use sqlx::{SqlitePool, SqliteConnection};
+use sqlx::SqlitePool;
 use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
 use anyhow::Result;

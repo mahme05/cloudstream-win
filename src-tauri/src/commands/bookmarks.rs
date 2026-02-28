@@ -2,7 +2,7 @@
 // IPC handlers for bookmark operations.
 
 use tauri::State;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use chrono::Utc;
 use uuid::Uuid;
 use crate::AppState;

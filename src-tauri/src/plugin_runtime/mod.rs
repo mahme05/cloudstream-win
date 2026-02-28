@@ -183,11 +183,11 @@ impl PluginManager {
         
         // Linker defines what host functions the WASM can call
         // We only expose an http_fetch function — nothing else
-        let mut linker = Linker::new(&self.engine);
+        let linker = Linker::new(&self.engine);
         
         // Register the HTTP fetch function that plugins can call
         // This is how plugins make web requests through our client
-        let http_client = self.http_client.clone();
+        let _http_client = self.http_client.clone();
         
         // Note: In a full implementation, you'd use wasmtime's Func::wrap here
         // to register host functions the WASM can call.

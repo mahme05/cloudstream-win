@@ -31,7 +31,8 @@ tokio = { version = "1", features = ["full"] }
 sqlx = { version = "0.7", features = ["sqlite", "runtime-tokio-rustls", "migrate", "chrono"] }
 
 # --- HTTP client (makes web requests for plugins) ---
-reqwest = { version = "0.11", features = ["json", "cookies", "rustls-tls"], default-features = false }
+reqwest = { version = "0.11", features = ["json", "cookies", "rustls-tls", "stream"], default-features = false }
+futures-util = "0.3"
 
 # --- Serialization (converts Rust structs <-> JSON) ---
 serde = { version = "1", features = ["derive"] }

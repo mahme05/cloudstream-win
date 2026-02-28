@@ -4,7 +4,7 @@
 use tauri::State;
 use serde::Deserialize;
 use chrono::Utc;
-use uuid::Uuid;
+
 use crate::AppState;
 use crate::db::WatchHistory;
 
