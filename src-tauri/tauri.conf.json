@@ -4,22 +4,22 @@
   "version": "0.1.0",
   "identifier": "com.cloudstream.win",
   "build": {
-    "beforeDevCommand": "npm run dev",
-    "devUrl": "http://localhost:1420",
+    "beforeDevCommand":   "npm run dev",
+    "devUrl":             "http://localhost:1420",
     "beforeBuildCommand": "npm run build",
-    "frontendDist": "../dist"
+    "frontendDist":       "../dist"
   },
   "app": {
     "windows": [
       {
-        "title": "CloudStream Win",
-        "width": 1200,
-        "height": 800,
-        "minWidth": 900,
-        "minHeight": 600,
+        "title":      "CloudStream Win",
+        "width":      1200,
+        "height":     800,
+        "minWidth":   900,
+        "minHeight":  600,
         "decorations": true,
-        "resizable": true,
-        "center": true
+        "resizable":  true,
+        "center":     true
       }
     ],
     "security": {
@@ -35,7 +35,29 @@
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
+    ],
+    "resources": [
+      "resources/cloudstream-bridge.jar",
+      "resources/jre/**"
     ]
   },
-  "plugins": {}
+  "plugins": {
+    "shell": {
+      "open": true,
+      "scope": [
+        {
+          "name": "java",
+          "cmd":  "java",
+          "args": true,
+          "sidecar": false
+        },
+        {
+          "name":    "java-bundled",
+          "cmd":     "resources/jre/bin/java.exe",
+          "args":    true,
+          "sidecar": false
+        }
+      ]
+    }
+  }
 }

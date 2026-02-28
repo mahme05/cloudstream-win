@@ -69,8 +69,10 @@ impl Database {
     pub async fn new(path: &str) -> Result<Self> {
         // The connection string format for SQLite
         // On Windows, backslashes in paths break the sqlite:// URI — use forward slashes
+        // Windows paths like C:\foo\bar must become sqlite:///C:/foo/bar
+        // (three slashes = absolute path in the sqlite:// URI scheme)
         let normalized = path.replace('\\', "/");
-        let connection_string = format!("sqlite://{}?mode=rwc", normalized);
+        let connection_string = format!("sqlite:///{}?mode=rwc", normalized);
         
         let pool = SqlitePool::connect(&connection_string).await?;
         

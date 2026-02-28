@@ -132,6 +132,7 @@ pub async fn get_watch_history(
 }
 
 #[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct UpdateProgressPayload {
     pub media_id: String,
     pub plugin_id: String,

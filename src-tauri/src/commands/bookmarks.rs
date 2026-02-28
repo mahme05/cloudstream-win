@@ -17,6 +17,7 @@ pub async fn get_bookmarks(
 
 // Payload sent from React when adding a bookmark
 #[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct AddBookmarkPayload {
     pub media_id: String,
     pub plugin_id: String,

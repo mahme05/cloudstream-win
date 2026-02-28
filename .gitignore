@@ -21,3 +21,14 @@ desktop.ini
 
 # Logs
 *.log
+
+# JVM sidecar bridge — built by scripts/build-all.ps1, not committed
+src-tauri/resources/cloudstream-bridge.jar
+src-tauri/resources/jre/
+
+# Gradle
+cloudstream-bridge/.gradle/
+cloudstream-bridge/build/
+
+# Leftover FFI stub
+src-tauri/src/plugin_runtime/native_ffi.rs
