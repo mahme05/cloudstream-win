@@ -27,8 +27,14 @@ export const api = {
     list: () =>
       invoke<PluginInfo[]>("list_plugins"),
 
-    install: (wasmPath: string, info: PluginInfo) =>
-      invoke<void>("install_plugin", { wasmPath, info }),
+    install: (jsPath: string) =>
+      invoke<PluginInfo>("install_plugin", { payload: { jsPath } }),
+
+    installFromSource: (source: string) =>
+      invoke<PluginInfo>("install_plugin", { payload: { source } }),
+
+    remove: (pluginId: string) =>
+      invoke<void>("remove_plugin", { pluginId }),
 
     search: (pluginId: string, query: string) =>
       invoke<SearchResult[]>("search_content", { pluginId, query }),

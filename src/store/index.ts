@@ -47,6 +47,7 @@ export const useStore = create<AppStore>((set, get) => ({
   // ─── PLUGINS ───
   plugins: [],
   loadPlugins: async () => {
+    // Plugins live in memory only — re-list from the Rust plugin manager
     const plugins = await api.plugins.list();
     set({ plugins });
   },

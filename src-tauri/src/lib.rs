@@ -61,6 +61,7 @@ pub fn run() {
             // Plugin commands
             commands::plugins::list_plugins,
             commands::plugins::install_plugin,
+            commands::plugins::remove_plugin,
             commands::plugins::search_content,
             commands::plugins::get_episodes,
             commands::plugins::get_streams,

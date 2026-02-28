@@ -1,22 +1,10 @@
 // commands/plugins.rs
-// IPC handlers for plugin operations.
-//
-// #[tauri::command] makes a Rust function callable from React via:
-//   import { invoke } from "@tauri-apps/api/core"
-//   const results = await invoke("search_content", { pluginId: "...", query: "..." })
-//
-// State<AppState> gives you access to the database and plugin manager.
-// The return type Result<T, String> means:
-//   - Ok(value) -> sent to React as the resolved value
-//   - Err(string) -> sent to React as a rejected error
 
 use tauri::State;
 use serde::Deserialize;
 use crate::AppState;
 use crate::plugin_runtime::{PluginInfo, SearchResult, Episode, StreamSource};
 
-/// List all currently loaded plugins
-/// React call: await invoke("list_plugins")
 #[tauri::command]
 pub async fn list_plugins(
     state: State<'_, AppState>,
@@ -24,21 +12,51 @@ pub async fn list_plugins(
     Ok(state.plugin_manager.list_plugins())
 }
 
-/// Install a plugin from a .wasm file path
-/// React call: await invoke("install_plugin", { wasmPath: "C:/...", info: {...} })
+#[derive(Deserialize)]
+pub struct InstallPluginPayload {
+    pub js_path: Option<String>,  // Local file path
+    pub source: Option<String>,   // Raw JS source (for URL-installed plugins)
+}
+
+/// Install a plugin from a .js file path or raw JS source.
+/// Automatically parses the @plugin-info header to get metadata.
+/// React call: await invoke("install_plugin", { payload: { jsPath: "..." } })
 #[tauri::command]
 pub async fn install_plugin(
     state: State<'_, AppState>,
-    wasm_path: String,
-    info: PluginInfo,
-) -> Result<(), String> {
+    payload: InstallPluginPayload,
+) -> Result<PluginInfo, String> {
+    let source = if let Some(path) = &payload.js_path {
+        std::fs::read_to_string(path)
+            .map_err(|e| format!("Failed to read plugin file: {}", e))?
+    } else if let Some(src) = payload.source {
+        src
+    } else {
+        return Err("Must provide either jsPath or source".to_string());
+    };
+
+    // Auto-parse plugin info from the @plugin-info header
+    let info = crate::plugin_runtime::PluginManager::parse_plugin_info(&source)
+        .map_err(|e| format!("Invalid plugin: {}", e))?;
+
+    let info_clone = info.clone();
     state.plugin_manager
-        .load_plugin(&wasm_path, info)
-        .map_err(|e| e.to_string())
+        .load_plugin_from_source(source, info)
+        .map_err(|e| e.to_string())?;
+
+    Ok(info_clone)
 }
 
-/// Search for content using a specific plugin
-/// React call: await invoke("search_content", { pluginId: "myPlugin", query: "naruto" })
+/// Remove an installed plugin
+#[tauri::command]
+pub async fn remove_plugin(
+    state: State<'_, AppState>,
+    plugin_id: String,
+) -> Result<(), String> {
+    state.plugin_manager.remove_plugin(&plugin_id);
+    Ok(())
+}
+
 #[tauri::command]
 pub async fn search_content(
     state: State<'_, AppState>,
@@ -54,8 +72,6 @@ pub async fn search_content(
         })
 }
 
-/// Get episode list for a show
-/// React call: await invoke("get_episodes", { pluginId: "...", showId: "..." })
 #[tauri::command]
 pub async fn get_episodes(
     state: State<'_, AppState>,
@@ -68,8 +84,6 @@ pub async fn get_episodes(
         .map_err(|e| e.to_string())
 }
 
-/// Get stream URLs for a piece of media
-/// React call: await invoke("get_streams", { pluginId: "...", mediaId: "..." })
 #[tauri::command]
 pub async fn get_streams(
     state: State<'_, AppState>,

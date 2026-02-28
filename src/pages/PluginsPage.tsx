@@ -1,54 +1,60 @@
 // src/pages/PluginsPage.tsx
-// Page for managing installed plugins.
-// Users can install new .wasm plugin files here.
-
 import { useState } from "react";
 import { useStore } from "../store";
 import { api } from "../api/tauri";
 import { open } from "@tauri-apps/plugin-dialog";
-import type { PluginInfo } from "../types";
 
 export default function PluginsPage() {
   const { plugins, loadPlugins } = useStore();
   const [installing, setInstalling] = useState(false);
-  const [showForm, setShowForm] = useState(false);
-  const [newPlugin, setNewPlugin] = useState<Partial<PluginInfo>>({
-    id: "",
-    name: "",
-    version: "1.0.0",
-    description: "",
-    author: "",
-    supported_types: ["movies", "shows"],
-  });
-  const [wasmPath, setWasmPath] = useState("");
+  const [activeTab, setActiveTab] = useState<"file" | "url">("file");
+  const [urlInput, setUrlInput] = useState("");
+  const [error, setError] = useState<string | null>(null);
 
-  const handleBrowse = async () => {
-    // Opens a file picker — returns path to selected .wasm file
+  const handleBrowseAndInstall = async () => {
+    setError(null);
     const selected = await open({
       filters: [{ name: "JavaScript Plugin", extensions: ["js"] }],
+      multiple: false,
     });
-    if (typeof selected === "string") {
-      setWasmPath(selected);
-      // Auto-fill plugin ID from filename
-      const filename = selected.split(/[\\/]/).pop()?.replace(".wasm", "") || "";
-      setNewPlugin((p) => ({ ...p, id: filename, name: filename }));
+    if (!selected || typeof selected !== "string") return;
+
+    setInstalling(true);
+    try {
+      await api.plugins.install(selected);
+      await loadPlugins();
+    } catch (err) {
+      setError(`Failed to install: ${err}`);
+    } finally {
+      setInstalling(false);
     }
   };
 
-  const handleInstall = async () => {
-    if (!wasmPath || !newPlugin.id || !newPlugin.name) return;
+  const handleInstallFromUrl = async () => {
+    if (!urlInput.trim()) return;
+    setError(null);
     setInstalling(true);
     try {
-      await api.plugins.install(wasmPath, newPlugin as PluginInfo);
-      await loadPlugins(); // Refresh list
-      setShowForm(false);
-      setWasmPath("");
-      setNewPlugin({ id: "", name: "", version: "1.0.0", description: "", author: "", supported_types: ["movies", "shows"] });
+      const res = await fetch(urlInput.trim());
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const source = await res.text();
+      await api.plugins.installFromSource(source);
+      await loadPlugins();
+      setUrlInput("");
     } catch (err) {
-      console.error("Install failed:", err);
-      alert(`Failed to install plugin: ${err}`);
+      setError(`Failed to install from URL: ${err}`);
     } finally {
       setInstalling(false);
+    }
+  };
+
+  const handleRemove = async (pluginId: string) => {
+    if (!confirm(`Remove plugin "${pluginId}"?`)) return;
+    try {
+      await api.plugins.remove(pluginId);
+      await loadPlugins();
+    } catch (err) {
+      setError(`Failed to remove plugin: ${err}`);
     }
   };
 
@@ -56,89 +62,87 @@ export default function PluginsPage() {
     <div className="page plugins-page">
       <div className="page-header">
         <h1 className="page-title">Plugins</h1>
-        <button className="btn-primary" onClick={() => setShowForm(!showForm)}>
-          + Install Plugin
-        </button>
       </div>
 
-      {/* Install form */}
-      {showForm && (
-        <div className="install-form">
-          <h3>Install a Plugin</h3>
-          <p className="hint">
-            Plugins are .wasm files. You can write your own or download community plugins.
-          </p>
-          
-          <div className="form-row">
-            <label>Plugin File (.wasm)</label>
-            <div className="file-input-row">
-              <input type="text" value={wasmPath} readOnly placeholder="No file selected" className="text-input" />
-              <button className="btn-secondary" onClick={handleBrowse}>Browse...</button>
-            </div>
-          </div>
+      {/* Install Section */}
+      <div className="install-form">
+        <h3>Install a Plugin</h3>
+        <p className="hint">
+          Plugins are .js files that add content sources. Without plugins the app has no content.
+        </p>
 
-          <div className="form-row">
-            <label>Plugin ID</label>
-            <input
-              type="text"
-              value={newPlugin.id}
-              onChange={(e) => setNewPlugin((p) => ({ ...p, id: e.target.value }))}
-              placeholder="my-plugin"
-              className="text-input"
-            />
-          </div>
+        {/* Tab switcher */}
+        <div className="tab-row">
+          <button
+            className={`tab-btn ${activeTab === "file" ? "active" : ""}`}
+            onClick={() => setActiveTab("file")}
+          >
+            From File
+          </button>
+          <button
+            className={`tab-btn ${activeTab === "url" ? "active" : ""}`}
+            onClick={() => setActiveTab("url")}
+          >
+            From URL
+          </button>
+        </div>
 
-          <div className="form-row">
-            <label>Display Name</label>
-            <input
-              type="text"
-              value={newPlugin.name}
-              onChange={(e) => setNewPlugin((p) => ({ ...p, name: e.target.value }))}
-              placeholder="My Plugin"
-              className="text-input"
-            />
-          </div>
-
-          <div className="form-row">
-            <label>Author</label>
-            <input
-              type="text"
-              value={newPlugin.author}
-              onChange={(e) => setNewPlugin((p) => ({ ...p, author: e.target.value }))}
-              placeholder="Your Name"
-              className="text-input"
-            />
-          </div>
-
-          <div className="form-actions">
-            <button className="btn-secondary" onClick={() => setShowForm(false)}>Cancel</button>
+        {activeTab === "file" && (
+          <div className="tab-content">
+            <p className="hint">Select a .js plugin file from your computer.</p>
             <button
               className="btn-primary"
-              onClick={handleInstall}
-              disabled={!wasmPath || !newPlugin.id || installing}
+              onClick={handleBrowseAndInstall}
+              disabled={installing}
             >
-              {installing ? "Installing..." : "Install"}
+              {installing ? "Installing..." : "Browse & Install .js File"}
             </button>
           </div>
-        </div>
-      )}
+        )}
+
+        {activeTab === "url" && (
+          <div className="tab-content">
+            <p className="hint">Paste a raw URL to a .js plugin file (e.g. a raw GitHub link).</p>
+            <div className="file-input-row">
+              <input
+                className="text-input"
+                type="text"
+                placeholder="https://raw.githubusercontent.com/.../plugin.js"
+                value={urlInput}
+                onChange={(e) => setUrlInput(e.target.value)}
+                disabled={installing}
+              />
+              <button
+                className="btn-primary"
+                onClick={handleInstallFromUrl}
+                disabled={installing || !urlInput.trim()}
+              >
+                {installing ? "Installing..." : "Install"}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {error && <p className="error-text">{error}</p>}
+      </div>
 
       {/* Installed plugins */}
       {plugins.length === 0 ? (
         <div className="empty-state">
           <div className="empty-icon">🔌</div>
           <h2>No plugins installed</h2>
-          <p>Install a plugin to start streaming content.</p>
+          <p>Install a plugin above to start streaming content.</p>
         </div>
       ) : (
         <div className="plugin-list">
+          <h3 style={{ marginBottom: 12 }}>Installed ({plugins.length})</h3>
           {plugins.map((plugin) => (
             <div key={plugin.id} className="plugin-row">
               <div className="plugin-icon">🔌</div>
               <div className="plugin-info">
                 <div className="plugin-name">{plugin.name}</div>
                 <div className="plugin-meta">
-                  v{plugin.version} by {plugin.author}
+                  v{plugin.version} · by {plugin.author || "Unknown"}
                 </div>
                 {plugin.description && (
                   <div className="plugin-desc">{plugin.description}</div>
@@ -149,6 +153,12 @@ export default function PluginsPage() {
                   ))}
                 </div>
               </div>
+              <button
+                className="btn-cancel"
+                onClick={() => handleRemove(plugin.id)}
+              >
+                Remove
+              </button>
             </div>
           ))}
         </div>
