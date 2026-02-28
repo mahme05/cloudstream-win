@@ -50,7 +50,7 @@ jobs:
 
       # ── 5. Install frontend dependencies ────────────────────
       - name: Install frontend dependencies
-        run: npm ci
+        run: npm install
 
       # ── 6. Build the Tauri app ───────────────────────────────
       # This compiles Rust, bundles React, and creates the .msi installer
