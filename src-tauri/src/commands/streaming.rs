@@ -13,7 +13,7 @@ use crate::db::WatchHistory;
 #[tauri::command]
 pub async fn play_stream(
     url: String,
-    title: String,
+    _title: String,
     headers: Option<std::collections::HashMap<String, String>>,
 ) -> Result<String, String> {
     log::info!("Opening stream: {}", url);

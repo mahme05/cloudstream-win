@@ -13,8 +13,9 @@ pub async fn list_plugins(
 }
 
 #[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct InstallPluginPayload {
-    pub js_path: Option<String>,  // Local file path
+    pub js_path: Option<String>,  // Local file path (sent as jsPath from frontend)
     pub source: Option<String>,   // Raw JS source (for URL-installed plugins)
 }
 

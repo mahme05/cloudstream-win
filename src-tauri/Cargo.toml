@@ -22,7 +22,6 @@ tauri = { version = "2", features = [] }
 tauri-plugin-shell = "2"
 tauri-plugin-dialog = "2"
 tauri-plugin-fs = "2"
-tauri-plugin-notification = "2"
 
 # --- Async runtime (like JavaScript's event loop, but faster) ---
 tokio = { version = "1", features = ["full"] }

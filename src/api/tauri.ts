@@ -9,8 +9,8 @@ import type {
 export const api = {
   plugins: {
     list: () => invoke<PluginInfo[]>("list_plugins"),
-    installFile: (jsPath: string) => invoke<PluginInfo>("install_plugin_file", { jsPath }),
-    installUrl: (url: string) => invoke<PluginInfo>("install_plugin_url", { url }),
+    installFile: (jsPath: string) => invoke<PluginInfo>("install_plugin", { payload: { jsPath } }),
+    installUrl: (url: string) => invoke<string>("fetch_url", { url }).then(source => invoke<PluginInfo>("install_plugin", { payload: { source } })),
     remove: (pluginId: string) => invoke<boolean>("remove_plugin", { pluginId }),
     search: (pluginId: string, query: string) =>
       invoke<SearchResult[]>("search_content", { pluginId, query }),

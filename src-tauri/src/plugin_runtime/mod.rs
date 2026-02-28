@@ -53,6 +53,8 @@ pub struct PluginInfo {
     pub author: String,
     pub icon_url: Option<String>,
     pub supported_types: Vec<String>,
+    #[serde(default)]
+    pub is_builtin: bool,
 }
 
 #[derive(Clone)]
@@ -98,6 +100,7 @@ impl PluginManager {
             supported_types: v["supported_types"].as_array()
                 .map(|a| a.iter().filter_map(|x| x.as_str().map(|s| s.to_string())).collect())
                 .unwrap_or_default(),
+            is_builtin: v["is_builtin"].as_bool().unwrap_or(false),
         })
     }
 
@@ -127,12 +130,12 @@ impl PluginManager {
     }
 
     pub async fn get_episodes(&self, plugin_id: &str, show_id: &str) -> Result<Vec<Episode>> {
-        let json = self.call(plugin_id, "get_episodes", show_id).await?;
+        let json = self.call(plugin_id, "getEpisodes", show_id).await?;
         serde_json::from_str(&json).map_err(|e| anyhow!("get_episodes() bad JSON: {}", e))
     }
 
     pub async fn get_streams(&self, plugin_id: &str, media_id: &str) -> Result<Vec<StreamSource>> {
-        let json = self.call(plugin_id, "get_streams", media_id).await?;
+        let json = self.call(plugin_id, "getStreams", media_id).await?;
         serde_json::from_str(&json).map_err(|e| anyhow!("get_streams() bad JSON: {}", e))
     }
 

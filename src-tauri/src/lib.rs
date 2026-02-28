@@ -11,7 +11,7 @@ pub struct AppState {
     pub plugin_manager: plugin_runtime::PluginManager,
 }
 
-#[cfg_attr(desktop, tauri::mobile_entry_point)]
+#[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     env_logger::init();
 
@@ -39,8 +39,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             // JS Plugin commands
             commands::plugins::list_plugins,
-            commands::plugins::install_plugin_file,
-            commands::plugins::install_plugin_url,
+            commands::plugins::install_plugin,
+            commands::plugins::fetch_url,
             commands::plugins::remove_plugin,
             commands::plugins::search_content,
             commands::plugins::get_episodes,

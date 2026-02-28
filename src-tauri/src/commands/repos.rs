@@ -3,9 +3,7 @@
 // and displays their plugin listings. This lets users browse the same
 // repos as CloudStream. Actual playback uses our own JS plugin system.
 
-use tauri::State;
 use serde::{Deserialize, Serialize};
-use crate::AppState;
 
 // ── CloudStream repo.json format ──────────────────────────
 

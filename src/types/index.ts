@@ -9,7 +9,8 @@ export interface PluginInfo {
   description: string;
   author: string;
   icon_url?: string;
-  supported_types: string[]; // ["movies", "shows", "anime"]
+  supported_types: string[];
+  is_builtin: boolean;
 }
 
 export interface SearchResult {
