@@ -1,7 +1,7 @@
 // src/pages/SearchPage.tsx
 // Search page: pick a plugin, enter a query, see results.
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useStore } from "../store";
 import MediaCard from "../components/cards/MediaCard";
 

@@ -2,7 +2,7 @@
 // The persistent sidebar + content area wrapper.
 // All pages render inside <Outlet /> (where the matched route goes).
 
-import { Outlet, NavLink, useNavigate } from "react-router-dom";
+import { Outlet, NavLink } from "react-router-dom";
 import { useState } from "react";
 import { useStore } from "../store";
 import clsx from "clsx";

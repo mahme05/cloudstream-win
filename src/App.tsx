@@ -5,7 +5,7 @@
 // The layout wraps all pages with a sidebar.
 
 import { useEffect } from "react";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { useStore } from "./store";
 import { onDownloadProgress, onDownloadComplete, onDownloadFailed } from "./api/tauri";
 import Layout from "./components/Layout";

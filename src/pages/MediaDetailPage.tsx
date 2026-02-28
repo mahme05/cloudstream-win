@@ -20,7 +20,7 @@ export default function MediaDetailPage() {
 
   const [episodes, setEpisodes] = useState<Episode[]>([]);
   const [streams, setStreams] = useState<StreamSource[]>([]);
-  const [selectedEpisode, setSelectedEpisode] = useState<Episode | null>(null);
+  const [_selectedEpisode, setSelectedEpisode] = useState<Episode | null>(null);
   const [loadingEpisodes, setLoadingEpisodes] = useState(false);
   const [loadingStreams, setLoadingStreams] = useState(false);
   const [showStreamPicker, setShowStreamPicker] = useState(false);
