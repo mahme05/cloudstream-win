@@ -871,9 +871,47 @@ body {
   margin-top: 8px;
 }
 
+/* ─────────────── PLUGIN EXTRAS ─────────────── */
+
+.plugin-row-installed { opacity: 0.7; }
+
+/* Repo browser */
+.repo-add-bar { display: flex; gap: 8px; margin-bottom: 14px; }
+.repo-add-bar .text-input { flex: 1; }
+.repo-filters { display: flex; gap: 8px; margin-bottom: 14px; }
+.repo-plugin-row { align-items: flex-start; }
+.plugin-icon-img { width: 40px; height: 40px; border-radius: 8px; object-fit: cover; flex-shrink: 0; }
+.lang-badge { font-size: 10px; background: var(--bg-hover); border-radius: 4px; padding: 1px 5px; margin-left: 6px; color: var(--text-muted); vertical-align: middle; }
+.cs3-badge { font-size: 10px; background: rgba(255,255,255,0.05); border: 1px solid #444; border-radius: 4px; padding: 2px 6px; color: var(--text-muted); white-space: nowrap; cursor: default; }
+.repo-plugin-actions { display: flex; flex-direction: column; gap: 6px; align-items: flex-end; flex-shrink: 0; }
+.repo-info-banner { margin-top: 24px; background: rgba(52,152,219,0.08); border: 1px solid rgba(52,152,219,0.2); border-radius: 8px; padding: 14px 16px; font-size: 13px; color: var(--text-secondary); line-height: 1.6; }
+.repo-info-banner p { margin-top: 6px; }
+.repo-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; background: var(--bg-secondary); border-radius: 8px; margin-bottom: 8px; }
+.btn-secondary { background: var(--bg-hover); border: none; color: var(--text-secondary); border-radius: var(--radius-sm); cursor: pointer; transition: all var(--transition); }
+.btn-secondary:hover { background: #444; color: var(--text-primary); }
+.plugin-note { font-size: 12px; color: #e67e22; margin-top: 4px; font-weight: 500; }
+.installed-badge { font-size: 12px; color: #2ecc71; padding: 4px 10px; border: 1px solid #2ecc71; border-radius: 100px; white-space: nowrap; }
+.btn-remove { background: none; border: 1px solid #444; color: var(--text-muted); width: 32px; height: 32px; border-radius: var(--radius-sm); cursor: pointer; flex-shrink: 0; transition: all var(--transition); }
+.btn-remove:hover { border-color: var(--accent); color: var(--accent); }
+.btn-sm { padding: 6px 14px; font-size: 13px; }
+.url-input-row { display: flex; gap: 10px; }
+.url-input-row .text-input { flex: 1; }
+.install-section { margin-bottom: 28px; }
+.install-section h3 { font-size: 16px; margin-bottom: 8px; }
+.divider { height: 1px; background: var(--bg-hover); margin: 24px 0; }
+.code-block { background: var(--bg-primary); border: 1px solid var(--bg-hover); border-radius: var(--radius); padding: 16px; font-family: 'Consolas', 'Courier New', monospace; font-size: 12px; color: var(--text-secondary); white-space: pre; overflow-x: auto; line-height: 1.6; margin-top: 12px; }
+.alert { padding: 12px 16px; border-radius: var(--radius); margin-bottom: 16px; font-size: 14px; }
+.alert-error { background: rgba(229,9,20,0.15); color: #ff6b6b; border: 1px solid rgba(229,9,20,0.3); }
+.alert-success { background: rgba(46,204,113,0.15); color: #2ecc71; border: 1px solid rgba(46,204,113,0.3); }
+.tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--bg-hover); margin-bottom: 24px; }
+.tab { background: none; border: none; border-bottom: 2px solid transparent; color: var(--text-secondary); padding: 10px 20px; cursor: pointer; font-size: 14px; margin-bottom: -1px; transition: all var(--transition); }
+.tab:hover { color: var(--text-primary); }
+.tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+.tab-content { padding-top: 8px; }
+
 /* ─────────────── UTILS ─────────────── */
 
-.hint { font-size: 13px; color: var(--text-muted); margin-bottom: 16px; }
+.hint { font-size: 13px; color: var(--text-muted); margin-bottom: 16px; line-height: 1.6; }
 .loading { color: var(--text-muted); padding: 40px; text-align: center; }
 
 /* Scrollbar */

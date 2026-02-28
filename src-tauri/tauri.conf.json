@@ -37,11 +37,5 @@
       "icons/icon.ico"
     ]
   },
-  "plugins": {
-    "dialog": {},
-    "fs": {
-      "all": true
-    },
-    "notification": {}
-  }
+  "plugins": {}
 }

@@ -38,8 +38,8 @@ futures-util = "0.3"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 
-# --- Plugin runtime (runs .js plugin files safely via QuickJS) ---
-rquickjs = { version = "0.6", features = ["futures", "loader"] }
+# --- Plugin runtime (pure-Rust JS engine, no system deps needed) ---
+boa_engine = { version = "0.19", features = [] }
 
 # --- Error handling (makes error handling cleaner) ---
 anyhow = "1"
@@ -48,9 +48,6 @@ thiserror = "1"
 # --- Logging ---
 log = "0.4"
 env_logger = "0.11"
-
-# --- Async traits (needed for async functions in traits) ---
-async-trait = "0.1"
 
 # --- UUID generation (for unique IDs) ---
 uuid = { version = "1", features = ["v4"] }

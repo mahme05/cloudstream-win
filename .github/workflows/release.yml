@@ -1,78 +1,81 @@
-# .github/workflows/release.yml
-#
-# This workflow automatically builds and publishes a new release
-# whenever you push a version tag like "v1.0.0".
-#
-# HOW TO TRIGGER A RELEASE:
-#   git tag v1.0.0
-#   git push origin v1.0.0
-#
-# GitHub will then:
-#   1. Build the app on Windows
-#   2. Create a GitHub Release
-#   3. Upload the .msi installer automatically
-
 name: Release
 
 on:
   push:
     tags:
-      - 'v*'          # triggers on any tag starting with "v", e.g. v1.0.0
+      - 'v*'
 
 jobs:
   release:
-    name: Build and Release
-    runs-on: windows-latest   # must be Windows to build a Windows app
+    name: Build & Publish Release
+    runs-on: windows-latest
 
     steps:
-      # ── 1. Check out your code ──────────────────────────────
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
 
-      # ── 2. Set up Node.js ───────────────────────────────────
-      - name: Set up Node.js
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
 
-      # ── 3. Set up Rust ──────────────────────────────────────
-      - name: Set up Rust
+      - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: x86_64-pc-windows-msvc
 
-      # ── 4. Cache Rust build artifacts (speeds up future builds) ──
-      - name: Cache Rust build
+      - name: Cache Rust
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: './src-tauri -> target'
 
-      # ── 5. Install frontend dependencies ────────────────────
-      - name: Install frontend dependencies
-        run: npm install
+      - name: Install frontend deps
+        run: npm ci
 
-      # ── 6. Build the Tauri app ───────────────────────────────
-      # This compiles Rust, bundles React, and creates the .msi installer
-      - name: Build Tauri app
+      - name: Delete all previous releases
+        uses: dev-drprasad/delete-older-releases@v0.3.3
+        with:
+          keep_latest: 0
+          delete_tags: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build & publish release
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tagName: ${{ github.ref_name }}        # e.g. "v1.0.0"
+          tagName: ${{ github.ref_name }}
           releaseName: "CloudStream Win ${{ github.ref_name }}"
           releaseBody: |
             ## CloudStream Win ${{ github.ref_name }}
 
-            ### Installation
+            ### How to install
             1. Download `cloudstream-win_*_x64_en-US.msi` below
             2. Run the installer
-            3. If Windows SmartScreen appears, click **More info → Run anyway**
+            3. If Windows SmartScreen appears → click **More info → Run anyway**
+            4. Go to the **Plugins** tab and install your first plugin
 
-            ### What's new
-            See [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md) for details.
+            ### Included plugins (put in the `plugins/` folder)
+            | Plugin | Content | Notes |
+            |--------|---------|-------|
+            | `gogoanime.js` | Anime | Needs Consumet API |
+            | `zoro.js` | Anime HD | Needs Consumet API |
+            | `movies-tmdb.js` | Movies & TV | Needs free TMDB key |
+            | `netflix.js` | Netflix | Opens Netflix — subscription required |
+            | `prime.js` | Prime Video | Opens Prime Video — subscription required |
+            | `appletv.js` | Apple TV+ | Opens Apple TV+ — subscription required |
+            | `disney.js` | Disney+ | Opens Disney+ — subscription required |
+            | `hulu.js` | Hulu | Opens Hulu — subscription required, US only |
+            | `crunchyroll.js` | Crunchyroll | Free with ads |
 
-            ### Checksums
-            SHA256 checksums are listed below each file for verification.
-          releaseDraft: false       # set to true to review before publishing
+            ### Requirements
+            - Windows 10 or 11 (64-bit)
+            - VLC or MPV recommended for playing streams
+
+            ### Notes
+            - Subscription plugins (Netflix, Prime etc.) open the official website — they do NOT bypass paywalls
+            - Free anime plugins require a [Consumet API](https://github.com/consumet/consumet.ts) instance
+          releaseDraft: false
           prerelease: false

@@ -7,3 +7,4 @@ pub mod plugins;
 pub mod bookmarks;
 pub mod downloads;
 pub mod streaming;
+pub mod repos;

@@ -47,6 +47,20 @@ pub async fn install_plugin(
     Ok(info_clone)
 }
 
+/// Fetch a URL and return body as text (used for URL-based plugin installs,
+/// which can't use browser fetch due to CORS restrictions in the WebView)
+#[tauri::command]
+pub async fn fetch_url(url: String) -> Result<String, String> {
+    let client = reqwest::Client::builder()
+        .user_agent("Mozilla/5.0")
+        .build()
+        .map_err(|e| e.to_string())?;
+    let text = client.get(&url)
+        .send().await.map_err(|e| format!("Request failed: {}", e))?
+        .text().await.map_err(|e| format!("Failed to read body: {}", e))?;
+    Ok(text)
+}
+
 /// Remove an installed plugin
 #[tauri::command]
 pub async fn remove_plugin(

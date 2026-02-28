@@ -1,23 +1,11 @@
 // plugin_runtime/mod.rs
-// JavaScript plugin execution engine using QuickJS (via rquickjs).
-//
-// Each plugin is a .js file that exports three async functions:
-//   search(query)       -> JSON string of SearchResult[]
-//   getEpisodes(id)     -> JSON string of Episode[]
-//   getStreams(id)       -> JSON string of StreamSource[]
-//
-// Plugins make HTTP requests through a sandboxed fetch() that routes
-// all network calls through our reqwest client.
+// JavaScript plugin execution using Boa — a pure-Rust JS engine.
+// No system dependencies, works on Windows out of the box.
 
-use anyhow::{Result, anyhow};
+use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
-
-// ─────────────────────────────────────────────
-// SHARED DATA TYPES
-// Mirror the TypeScript types in src/types/index.ts
-// ─────────────────────────────────────────────
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct SearchResult {
@@ -67,20 +55,11 @@ pub struct PluginInfo {
     pub supported_types: Vec<String>,
 }
 
-// ─────────────────────────────────────────────
-// LOADED PLUGIN
-// Stores the plugin metadata and its JS source code.
-// ─────────────────────────────────────────────
-
 #[derive(Clone)]
 struct LoadedPlugin {
     info: PluginInfo,
-    source: String, // The raw JS source code
+    source: String,
 }
-
-// ─────────────────────────────────────────────
-// PLUGIN MANAGER
-// ─────────────────────────────────────────────
 
 pub struct PluginManager {
     plugins: Arc<RwLock<HashMap<String, LoadedPlugin>>>,
@@ -95,275 +74,212 @@ impl PluginManager {
             .timeout(std::time::Duration::from_secs(30))
             .build()
             .expect("Failed to create HTTP client");
-
         Self {
             plugins: Arc::new(RwLock::new(HashMap::new())),
             http_client,
         }
     }
 
-    /// Load a plugin from a .js file path.
-    /// Parses the @plugin-info header comment to extract metadata.
-    pub fn load_plugin(&self, js_path: &str, info: PluginInfo) -> Result<()> {
-        log::info!("Loading JS plugin: {} from {}", info.id, js_path);
-
-        let source = std::fs::read_to_string(js_path)
-            .map_err(|e| anyhow!("Failed to read plugin file '{}': {}", js_path, e))?;
-
-        let plugin_id = info.id.clone();
-        let loaded = LoadedPlugin { info, source };
-        self.plugins.write().unwrap().insert(plugin_id, loaded);
-        Ok(())
-    }
-
-    /// Load a plugin from raw JS source (e.g. downloaded from URL).
-    pub fn load_plugin_from_source(&self, source: String, info: PluginInfo) -> Result<()> {
-        log::info!("Loading JS plugin from source: {}", info.id);
-        let plugin_id = info.id.clone();
-        let loaded = LoadedPlugin { info, source };
-        self.plugins.write().unwrap().insert(plugin_id, loaded);
-        Ok(())
-    }
-
-    /// Parse the @plugin-info JSON header from a JS file.
     pub fn parse_plugin_info(source: &str) -> Result<PluginInfo> {
-        // Header format: // @plugin-info {...json...}
         let line = source
             .lines()
             .find(|l| l.contains("@plugin-info"))
-            .ok_or_else(|| anyhow!("Plugin missing @plugin-info header"))?;
-
-        let json_start = line.find('{')
-            .ok_or_else(|| anyhow!("@plugin-info missing JSON object"))?;
-        let json_str = &line[json_start..];
-
-        // The JSON has is_builtin which we don't need in PluginInfo, so use a raw Value first
-        let v: serde_json::Value = serde_json::from_str(json_str)
-            .map_err(|e| anyhow!("Invalid @plugin-info JSON: {}", e))?;
-
+            .ok_or_else(|| anyhow!("Missing @plugin-info header"))?;
+        let start = line.find('{').ok_or_else(|| anyhow!("@plugin-info missing JSON"))?;
+        let v: serde_json::Value = serde_json::from_str(&line[start..])
+            .map_err(|e| anyhow!("Bad @plugin-info JSON: {}", e))?;
         Ok(PluginInfo {
-            id: v["id"].as_str().unwrap_or("unknown").to_string(),
-            name: v["name"].as_str().unwrap_or("Unknown").to_string(),
-            version: v["version"].as_str().unwrap_or("1.0.0").to_string(),
-            description: v["description"].as_str().unwrap_or("").to_string(),
-            author: v["author"].as_str().unwrap_or("").to_string(),
-            icon_url: v["icon_url"].as_str().map(|s| s.to_string()),
-            supported_types: v["supported_types"]
-                .as_array()
-                .map(|arr| arr.iter().filter_map(|x| x.as_str().map(|s| s.to_string())).collect())
+            id:              v["id"].as_str().unwrap_or("unknown").to_string(),
+            name:            v["name"].as_str().unwrap_or("Unknown").to_string(),
+            version:         v["version"].as_str().unwrap_or("1.0.0").to_string(),
+            description:     v["description"].as_str().unwrap_or("").to_string(),
+            author:          v["author"].as_str().unwrap_or("").to_string(),
+            icon_url:        v["icon_url"].as_str().map(|s| s.to_string()),
+            supported_types: v["supported_types"].as_array()
+                .map(|a| a.iter().filter_map(|x| x.as_str().map(|s| s.to_string())).collect())
                 .unwrap_or_default(),
         })
     }
 
+    pub fn load_plugin_from_source(&self, source: String, info: PluginInfo) -> Result<()> {
+        log::info!("Loading plugin: {}", info.id);
+        self.plugins.write().unwrap().insert(info.id.clone(), LoadedPlugin { info, source });
+        Ok(())
+    }
+
+    pub fn load_plugin(&self, js_path: &str, info: PluginInfo) -> Result<()> {
+        let source = std::fs::read_to_string(js_path)
+            .map_err(|e| anyhow!("Cannot read '{}': {}", js_path, e))?;
+        self.load_plugin_from_source(source, info)
+    }
+
     pub fn list_plugins(&self) -> Vec<PluginInfo> {
-        self.plugins.read().unwrap()
-            .values()
-            .map(|p| p.info.clone())
-            .collect()
+        self.plugins.read().unwrap().values().map(|p| p.info.clone()).collect()
     }
 
-    pub fn remove_plugin(&self, plugin_id: &str) {
-        self.plugins.write().unwrap().remove(plugin_id);
+    pub fn remove_plugin(&self, id: &str) {
+        self.plugins.write().unwrap().remove(id);
     }
-
-    // ─── PUBLIC API ───
 
     pub async fn search(&self, plugin_id: &str, query: &str) -> Result<Vec<SearchResult>> {
-        let json = self.call_js_function(plugin_id, "search", query).await?;
-        Ok(serde_json::from_str(&json)
-            .map_err(|e| anyhow!("search() returned invalid JSON: {}", e))?)
+        let json = self.call(plugin_id, "search", query).await?;
+        serde_json::from_str(&json).map_err(|e| anyhow!("search() bad JSON: {}", e))
     }
 
     pub async fn get_episodes(&self, plugin_id: &str, show_id: &str) -> Result<Vec<Episode>> {
-        let json = self.call_js_function(plugin_id, "get_episodes", show_id).await?;
-        Ok(serde_json::from_str(&json)
-            .map_err(|e| anyhow!("get_episodes() returned invalid JSON: {}", e))?)
+        let json = self.call(plugin_id, "get_episodes", show_id).await?;
+        serde_json::from_str(&json).map_err(|e| anyhow!("get_episodes() bad JSON: {}", e))
     }
 
     pub async fn get_streams(&self, plugin_id: &str, media_id: &str) -> Result<Vec<StreamSource>> {
-        let json = self.call_js_function(plugin_id, "get_streams", media_id).await?;
-        Ok(serde_json::from_str(&json)
-            .map_err(|e| anyhow!("get_streams() returned invalid JSON: {}", e))?)
+        let json = self.call(plugin_id, "get_streams", media_id).await?;
+        serde_json::from_str(&json).map_err(|e| anyhow!("get_streams() bad JSON: {}", e))
     }
 
-    // ─── JS EXECUTION ───
-
-    /// Execute a JS function from a plugin and return its string result.
-    /// All HTTP requests from the plugin are intercepted and routed through reqwest.
-    async fn call_js_function(
-        &self,
-        plugin_id: &str,
-        function_name: &str,
-        arg: &str,
-    ) -> Result<String> {
+    async fn call(&self, plugin_id: &str, func: &str, arg: &str) -> Result<String> {
         let plugin = {
-            let plugins = self.plugins.read().unwrap();
-            plugins.get(plugin_id)
-                .cloned()
+            let g = self.plugins.read().unwrap();
+            g.get(plugin_id).cloned()
                 .ok_or_else(|| anyhow!("Plugin '{}' not found", plugin_id))?
         };
-
         let client = self.http_client.clone();
         let source = plugin.source.clone();
-        let arg = arg.to_string();
-        let function_name = function_name.to_string();
-
-        // Run JS in a blocking thread — QuickJS is not async-native
-        tokio::task::spawn_blocking(move || {
-            run_js_plugin(&source, &function_name, &arg, client)
-        })
-        .await
-        .map_err(|e| anyhow!("JS thread panicked: {}", e))?
+        let func   = func.to_string();
+        let arg    = arg.to_string();
+        tokio::task::spawn_blocking(move || execute_js(&source, &func, &arg, client))
+            .await
+            .map_err(|e| anyhow!("JS thread panic: {}", e))?
     }
 }
 
 impl Default for PluginManager {
-    fn default() -> Self {
-        Self::new()
-    }
+    fn default() -> Self { Self::new() }
 }
 
-// ─────────────────────────────────────────────
-// JS EXECUTION ENGINE
-// Runs plugin JS code in QuickJS with a sandboxed fetch() implementation.
-// ─────────────────────────────────────────────
-
-fn run_js_plugin(
+fn execute_js(
     source: &str,
-    function_name: &str,
+    func_name: &str,
     arg: &str,
     http_client: reqwest::Client,
 ) -> Result<String> {
-    use rquickjs::{Context, Runtime, Function, Value, Object};
+    use boa_engine::{
+        js_string, native_function::NativeFunction, object::ObjectInitializer,
+        property::Attribute, Context, JsError, JsString, JsValue, Source,
+    };
 
-    let rt = Runtime::new().map_err(|e| anyhow!("QuickJS runtime error: {}", e))?;
-    let ctx = Context::full(&rt).map_err(|e| anyhow!("QuickJS context error: {}", e))?;
+    let mut ctx = Context::default();
+    let client  = Arc::new(http_client);
 
-    // Shared HTTP client for the fetch() implementation
-    let client = Arc::new(http_client);
+    // ── __http_fetch(url, method, headersJson, body) -> responseJson ──
+    let c = client.clone();
+    let fetch_fn = unsafe { NativeFunction::from_closure(move |_this, args, _ctx| {
+        let url    = args.get(0).and_then(|v| v.as_string()).map(|s| s.to_std_string_escaped()).unwrap_or_default();
+        let method = args.get(1).and_then(|v| v.as_string()).map(|s| s.to_std_string_escaped()).unwrap_or_else(|| "GET".into());
+        let hdrs   = args.get(2).and_then(|v| v.as_string()).map(|s| s.to_std_string_escaped()).unwrap_or_else(|| "{}".into());
+        let body   = args.get(3).and_then(|v| v.as_string()).map(|s| s.to_std_string_escaped());
+        let headers: HashMap<String, String> = serde_json::from_str(&hdrs).unwrap_or_default();
+        let cc = c.clone();
 
-    ctx.with(|ctx| -> Result<String> {
-        // ── Inject fetch() ──
-        // Plugins call: const res = await fetch(url, options)
-        // We intercept this and do a real HTTP request via reqwest.
-        let client_clone = client.clone();
-        let fetch_fn = Function::new(ctx.clone(), move |url: String, opts: rquickjs::Opt<Object>| {
-            let client = client_clone.clone();
-
-            // Parse options
-            let method = opts.as_ref()
-                .and_then(|o| o.get::<_, String>("method").ok())
-                .unwrap_or_else(|| "GET".to_string());
-
-            let body = opts.as_ref()
-                .and_then(|o| o.get::<_, String>("body").ok());
-
-            let headers_map: HashMap<String, String> = opts.as_ref()
-                .and_then(|o| o.get::<_, Object>("headers").ok())
-                .map(|hdrs| {
-                    hdrs.props::<String, String>()
-                        .filter_map(|r| r.ok())
-                        .collect()
+        // spawn_blocking threads have no tokio handle — build a fresh one-shot runtime
+        let result = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .map_err(|e| JsError::from_opaque(JsValue::from(JsString::from(e.to_string()))))
+            .and_then(|rt| {
+                rt.block_on(async move {
+                    let mut req = match method.to_uppercase().as_str() {
+                        "POST"   => cc.post(&url),
+                        "PUT"    => cc.put(&url),
+                        "DELETE" => cc.delete(&url),
+                        _        => cc.get(&url),
+                    };
+                    for (k, v) in &headers { req = req.header(k, v); }
+                    if let Some(b) = body { req = req.body(b); }
+                    let res    = req.send().await.map_err(|e| e.to_string())?;
+                    let status = res.status().as_u16();
+                    let text   = res.text().await.map_err(|e| e.to_string())?;
+                    Ok::<serde_json::Value, String>(serde_json::json!({
+                        "status": status, "ok": status >= 200 && status < 300, "body": text
+                    }))
                 })
-                .unwrap_or_default();
-
-            // Execute the request synchronously (we're already in a blocking thread)
-            let rt_handle = tokio::runtime::Handle::try_current()
-                .unwrap_or_else(|_| tokio::runtime::Runtime::new().unwrap().handle().clone());
-
-            let response_text = rt_handle.block_on(async move {
-                let mut req = match method.to_uppercase().as_str() {
-                    "POST" => client.post(&url),
-                    "PUT"  => client.put(&url),
-                    _ =>      client.get(&url),
-                };
-
-                for (k, v) in &headers_map {
-                    req = req.header(k, v);
-                }
-
-                if let Some(b) = body {
-                    req = req.body(b);
-                }
-
-                let res = req.send().await.map_err(|e| e.to_string())?;
-                let status = res.status().as_u16();
-                let text = res.text().await.map_err(|e| e.to_string())?;
-                Ok::<(u16, String), String>((status, text))
+                .map_err(|e: String| JsError::from_opaque(JsValue::from(JsString::from(e))))
             });
 
-            match response_text {
-                Ok((status, text)) => {
-                    // Return a Response-like object: { ok, status, text(), json() }
-                    Ok(format!(
-                        r#"{{
-                            "ok": {},
-                            "status": {},
-                            "_body": {}
-                        }}"#,
-                        status >= 200 && status < 300,
-                        status,
-                        serde_json::to_string(&text).unwrap_or_else(|_| "\"\"".into())
-                    ))
-                }
-                Err(e) => Err(rquickjs::Error::Exception),
-            }
-        }).map_err(|e| anyhow!("Failed to create fetch fn: {:?}", e))?;
+        match result {
+            Ok(j)  => Ok(JsValue::from(JsString::from(j.to_string()))),
+            Err(e) => Err(e),
+        }
+    }) };
+    ctx.register_global_callable(js_string!("__http_fetch"), 4, fetch_fn)
+        .map_err(|e| anyhow!("register fetch: {:?}", e))?;
 
-        ctx.globals().set("__fetch_impl", fetch_fn)
-            .map_err(|e| anyhow!("Failed to set fetch: {:?}", e))?;
+    // ── console.log ──
+    let log_fn = NativeFunction::from_copy_closure(|_this, args, _ctx| {
+        let msg: Vec<String> = args.iter().map(|v| v.display().to_string()).collect();
+        log::info!("[plugin] {}", msg.join(" "));
+        Ok(JsValue::undefined())
+    });
+    let console = ObjectInitializer::new(&mut ctx)
+        .function(log_fn, js_string!("log"), 0)
+        .build();
+    ctx.register_global_property(js_string!("console"), console, Attribute::all())
+        .map_err(|e| anyhow!("register console: {:?}", e))?;
 
-        // ── Inject console.log ──
-        let log_fn = Function::new(ctx.clone(), |msg: String| {
-            log::info!("[plugin] {}", msg);
-        }).map_err(|e| anyhow!("Failed to create log fn: {:?}", e))?;
-        ctx.globals().set("__console_log", log_fn)
-            .map_err(|e| anyhow!("Failed to set console.log: {:?}", e))?;
-
-        // ── Polyfills for fetch and console ──
-        let polyfill = r#"
-            const fetch = async (url, opts) => {
-                const raw = __fetch_impl(url, opts);
-                const parsed = JSON.parse(raw);
-                return {
-                    ok: parsed.ok,
-                    status: parsed.status,
-                    text: async () => parsed._body,
-                    json: async () => JSON.parse(parsed._body),
-                };
+    // ── fetch() polyfill ──
+    ctx.eval(Source::from_bytes(r#"
+        async function fetch(url, opts) {
+            var method  = (opts && opts.method)  || 'GET';
+            var body    = (opts && opts.body != null) ? String(opts.body) : null;
+            var headers = (opts && opts.headers) || {};
+            var raw     = __http_fetch(url, method, JSON.stringify(headers), body);
+            var parsed  = JSON.parse(raw);
+            return {
+                ok: parsed.ok, status: parsed.status,
+                text: async function() { return parsed.body; },
+                json: async function() { return JSON.parse(parsed.body); }
             };
-            const console = { log: (...a) => __console_log(a.map(String).join(' ')) };
-        "#;
+        }
+    "#)).map_err(|e| anyhow!("polyfill: {:?}", e))?;
 
-        ctx.eval::<(), _>(polyfill)
-            .map_err(|e| anyhow!("Polyfill error: {:?}", e))?;
+    // ── load plugin source ──
+    ctx.eval(Source::from_bytes(source.as_bytes()))
+        .map_err(|e| anyhow!("plugin load: {:?}", e))?;
 
-        // ── Load plugin source ──
-        ctx.eval::<(), _>(source.as_bytes())
-            .map_err(|e| anyhow!("Plugin load error: {:?}", e))?;
+    // ── call function, capture result in JS globals ──
+    // Using globals avoids needing access to Boa's private Promise internals.
+    let arg_json = serde_json::to_string(arg)
+        .unwrap_or_else(|_| format!("\"{}\"", arg));
 
-        // ── Call the function ──
-        // We wrap in an async IIFE and use a Promise resolver pattern
-        let call_script = format!(
-            r#"
-            (async () => {{
-                const result = await {}({});
-                return typeof result === 'string' ? result : JSON.stringify(result);
-            }})()
-            "#,
-            function_name,
-            serde_json::to_string(arg).unwrap_or_else(|_| "\"\"".into())
-        );
+    let call = format!(
+        "var __result = null; var __error = null; \
+         (async function() {{ \
+             try {{ var r = await {func}({arg}); \
+             __result = (typeof r === 'string') ? r : JSON.stringify(r); \
+             }} catch(e) {{ __error = String(e); }} \
+         }})();",
+        func = func_name,
+        arg  = arg_json,
+    );
 
-        // Evaluate and resolve the promise
-        let promise: rquickjs::Promise = ctx.eval(call_script.as_bytes())
-            .map_err(|e| anyhow!("Function call error: {:?}", e))?;
+    ctx.eval(Source::from_bytes(call.as_bytes()))
+        .map_err(|e| anyhow!("call script: {:?}", e))?;
 
-        rt.run_executor();
+    // Flush microtask queue — resolves the async IIFE
+    ctx.run_jobs();
 
-        let result: String = promise.finish()
-            .map_err(|e| anyhow!("Promise rejected: {:?}", e))?;
+    // Check for JS-side error
+    let err = ctx.eval(Source::from_bytes(b"__error"))
+        .map_err(|e| anyhow!("read __error: {:?}", e))?;
+    if !err.is_null_or_undefined() {
+        if let Some(s) = err.as_string() {
+            return Err(anyhow!("plugin '{}' threw: {}", func_name, s.to_std_string_escaped()));
+        }
+    }
 
-        Ok(result)
-    })
+    // Read result
+    ctx.eval(Source::from_bytes(b"__result"))
+        .map_err(|e| anyhow!("read __result: {:?}", e))?
+        .as_string()
+        .map(|s| s.to_std_string_escaped())
+        .ok_or_else(|| anyhow!("'{}' returned null — check plugin logs", func_name))
 }
