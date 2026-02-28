@@ -51,7 +51,7 @@ export const api = {
       title: string;
       poster_url?: string;
       media_type: string;
-    }) => invoke<Bookmark>("add_bookmark", { payload }),
+    }) => invoke<Bookmark>("add_bookmark", { payload: payload }),
 
     remove: (mediaId: string, pluginId: string) =>
       invoke<void>("remove_bookmark", { mediaId, pluginId }),
@@ -73,7 +73,7 @@ export const api = {
       episode_title?: string;
       progress_seconds: number;
       duration_seconds: number;
-    }) => invoke<void>("update_watch_progress", { payload }),
+    }) => invoke<void>("update_watch_progress", { payload: payload }),
   },
 
   // ─── DOWNLOADS API ───
@@ -88,7 +88,7 @@ export const api = {
       episode_title?: string;
       url: string;
       save_path: string;
-    }) => invoke<string>("start_download", { payload }),
+    }) => invoke<string>("start_download", { payload: payload }),
 
     cancel: (downloadId: string) =>
       invoke<void>("cancel_download", { downloadId }),

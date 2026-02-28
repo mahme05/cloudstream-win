@@ -29,7 +29,7 @@ impl Player {
 
 /// Play a stream URL in mpv
 /// Headers are passed as mpv http-header-fields option
-pub async fn play(url: &str, title: &str, headers: Option<HashMap<String, String>>) -> Result<()> {
+pub async fn play(url: &str, title: &str, _headers: Option<HashMap<String, String>>) -> Result<()> {
     log::info!("Would play: {} ({})", title, url);
     // TODO: Implement with mpv-rs
     // let mpv = Player::new()?;

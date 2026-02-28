@@ -25,7 +25,7 @@ export default function PluginsPage() {
   const handleBrowse = async () => {
     // Opens a file picker — returns path to selected .wasm file
     const selected = await open({
-      filters: [{ name: "WASM Plugin", extensions: ["wasm"] }],
+      filters: [{ name: "JavaScript Plugin", extensions: ["js"] }],
     });
     if (typeof selected === "string") {
       setWasmPath(selected);

@@ -68,7 +68,9 @@ impl Database {
     /// Runs migrations to create tables if they don't exist.
     pub async fn new(path: &str) -> Result<Self> {
         // The connection string format for SQLite
-        let connection_string = format!("sqlite://{}?mode=rwc", path);
+        // On Windows, backslashes in paths break the sqlite:// URI — use forward slashes
+        let normalized = path.replace('\\', "/");
+        let connection_string = format!("sqlite://{}?mode=rwc", normalized);
         
         let pool = SqlitePool::connect(&connection_string).await?;
         

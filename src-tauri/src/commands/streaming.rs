@@ -15,7 +15,7 @@ use crate::db::WatchHistory;
 pub async fn play_stream(
     url: String,
     title: String,
-    headers: Option<std::collections::HashMap<String, String>>,
+    _headers: Option<std::collections::HashMap<String, String>>,
 ) -> Result<(), String> {
     log::info!("Playing stream: {} ({})", title, url);
     // TODO: Wire up to the mpv player

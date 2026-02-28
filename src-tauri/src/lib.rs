@@ -27,6 +27,7 @@ pub fn run() {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
+        .plugin(tauri_plugin_notification::init())
         // Setup runs once when the app starts
         .setup(|app| {
             // Get the path to app data directory (where we'll store the DB)
