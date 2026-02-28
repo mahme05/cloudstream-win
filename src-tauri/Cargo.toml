@@ -1,0 +1,62 @@
+[package]
+name = "cloudstream-win"
+version = "0.1.0"
+description = "CloudStream for Windows - A plugin-based media streaming app"
+authors = ["you"]
+edition = "2021"
+
+[lib]
+name = "cloudstream_win_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[[bin]]
+name = "cloudstream-win"
+path = "src/main.rs"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+# --- Tauri (the app shell) ---
+tauri = { version = "2", features = [] }
+tauri-plugin-shell = "2"
+tauri-plugin-dialog = "2"
+tauri-plugin-fs = "2"
+tauri-plugin-notification = "2"
+
+# --- Async runtime (like JavaScript's event loop, but faster) ---
+tokio = { version = "1", features = ["full"] }
+
+# --- Database (SQLite, stores bookmarks/history/downloads) ---
+sqlx = { version = "0.7", features = ["sqlite", "runtime-tokio-rustls", "migrate", "chrono"] }
+
+# --- HTTP client (makes web requests for plugins) ---
+reqwest = { version = "0.11", features = ["json", "cookies", "rustls-tls"], default-features = false }
+
+# --- Serialization (converts Rust structs <-> JSON) ---
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# --- Plugin runtime (runs .wasm plugin files safely) ---
+wasmtime = "18"
+
+# --- Error handling (makes error handling cleaner) ---
+anyhow = "1"
+thiserror = "1"
+
+# --- Logging ---
+log = "0.4"
+env_logger = "0.11"
+
+# --- Async traits (needed for async functions in traits) ---
+async-trait = "0.1"
+
+# --- UUID generation (for unique IDs) ---
+uuid = { version = "1", features = ["v4"] }
+
+# --- Date/time ---
+chrono = { version = "0.4", features = ["serde"] }
+
+[features]
+default = ["custom-protocol"]
+custom-protocol = ["tauri/custom-protocol"]

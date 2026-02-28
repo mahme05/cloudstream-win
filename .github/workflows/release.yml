@@ -1,0 +1,78 @@
+# .github/workflows/release.yml
+#
+# This workflow automatically builds and publishes a new release
+# whenever you push a version tag like "v1.0.0".
+#
+# HOW TO TRIGGER A RELEASE:
+#   git tag v1.0.0
+#   git push origin v1.0.0
+#
+# GitHub will then:
+#   1. Build the app on Windows
+#   2. Create a GitHub Release
+#   3. Upload the .msi installer automatically
+
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'          # triggers on any tag starting with "v", e.g. v1.0.0
+
+jobs:
+  release:
+    name: Build and Release
+    runs-on: windows-latest   # must be Windows to build a Windows app
+
+    steps:
+      # ── 1. Check out your code ──────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ── 2. Set up Node.js ───────────────────────────────────
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      # ── 3. Set up Rust ──────────────────────────────────────
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+
+      # ── 4. Cache Rust build artifacts (speeds up future builds) ──
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: './src-tauri -> target'
+
+      # ── 5. Install frontend dependencies ────────────────────
+      - name: Install frontend dependencies
+        run: npm ci
+
+      # ── 6. Build the Tauri app ───────────────────────────────
+      # This compiles Rust, bundles React, and creates the .msi installer
+      - name: Build Tauri app
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: ${{ github.ref_name }}        # e.g. "v1.0.0"
+          releaseName: "CloudStream Win ${{ github.ref_name }}"
+          releaseBody: |
+            ## CloudStream Win ${{ github.ref_name }}
+
+            ### Installation
+            1. Download `cloudstream-win_*_x64_en-US.msi` below
+            2. Run the installer
+            3. If Windows SmartScreen appears, click **More info → Run anyway**
+
+            ### What's new
+            See [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md) for details.
+
+            ### Checksums
+            SHA256 checksums are listed below each file for verification.
+          releaseDraft: false       # set to true to review before publishing
+          prerelease: false

@@ -1,0 +1,23 @@
+# Node
+node_modules/
+dist/
+.env
+
+# Rust / Tauri build output
+src-tauri/target/
+
+# Tauri generated files
+src-tauri/gen/
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor
+.vscode/settings.json
+.idea/
+*.swp
+
+# Logs
+*.log
