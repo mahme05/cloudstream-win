@@ -57,8 +57,25 @@ pub async fn fetch_repo(url: String) -> Result<RepoInfo, String> {
         .send().await.map_err(|e| format!("Failed to fetch repo: {}", e))?
         .text().await.map_err(|e| e.to_string())?;
 
-    // Parse as CloudStream repo manifest
-    let manifest: RepoManifest = serde_json::from_str(&manifest_text)
+    // Try to parse as CloudStream repo manifest first.
+    // Some repos (e.g. Netflix.json) are a flat plugin list, not a manifest.
+    let json: serde_json::Value = serde_json::from_str(&manifest_text)
+        .map_err(|e| format!("Invalid JSON from repo: {}", e))?;
+
+    // Case 1: flat plugin array  [{"name":...}, ...]
+    if json.is_array() {
+        let plugins: Vec<RepoPlugin> = serde_json::from_value(json)
+            .unwrap_or_default();
+        return Ok(RepoInfo {
+            url: url.clone(),
+            name: url.split('/').last().unwrap_or("Repo").to_string(),
+            description: None,
+            plugins,
+        });
+    }
+
+    // Case 2: manifest with pluginLists
+    let manifest: RepoManifest = serde_json::from_value(json.clone())
         .map_err(|e| format!("Invalid repo format: {}", e))?;
 
     // Fetch all plugin lists and combine them

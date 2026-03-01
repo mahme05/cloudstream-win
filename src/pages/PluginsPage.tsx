@@ -84,6 +84,7 @@ export default function PluginsPage() {
   const [urlInput, setUrlInput] = useState("");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [cs3UrlInput, setCs3UrlInput] = useState("");
 
   const flash = (msg: string, isError = false) => {
     if (isError) { setError(msg); setSuccess(""); }
@@ -165,6 +166,33 @@ export default function PluginsPage() {
     setInstalling("file");
     try {
       const info = await api.plugins.installFile(selected);
+      await loadPlugins();
+      flash(`✓ "${info.name}" installed!`);
+      setTab("installed");
+    } catch (e: any) { flash(String(e), true); }
+    finally { setInstalling(null); }
+  };
+
+  const installCs3FromFile = async () => {
+    const selected = await open({
+      filters: [{ name: "CloudStream Plugin", extensions: ["cs3"] }],
+      title: "Select a CloudStream plugin (.cs3)",
+    });
+    if (!selected || typeof selected !== "string") return;
+    setInstalling("cs3-file");
+    try {
+      const info = await invoke<any>("install_native_plugin", { payload: { pluginPath: selected } });
+      await loadPlugins();
+      flash(`✓ "${info.name}" installed!`);
+      setTab("installed");
+    } catch (e: any) { flash(String(e), true); }
+    finally { setInstalling(null); }
+  };
+
+  const installCs3FromUrl = async (url: string) => {
+    setInstalling(url);
+    try {
+      const info = await invoke<any>("install_native_plugin", { payload: { pluginUrl: url } });
       await loadPlugins();
       flash(`✓ "${info.name}" installed!`);
       setTab("installed");
@@ -358,9 +386,14 @@ export default function PluginsPage() {
                       </div>
                     </div>
                     <div className="repo-plugin-actions">
-                      <span className="cs3-badge" title="This is a CloudStream plugin (.cs3) — browsing only">
-                        .cs3
-                      </span>
+                      <button
+                        className="btn-primary btn-sm"
+                        disabled={!!installing}
+                        onClick={() => plugin.url && installCs3FromUrl(plugin.url)}
+                        title={plugin.url ? "Install this plugin" : "No download URL available"}
+                      >
+                        {installing === plugin.url ? "Installing..." : "Install"}
+                      </button>
                     </div>
                   </div>
                 ))}
@@ -378,10 +411,9 @@ export default function PluginsPage() {
               <div className="repo-info-banner">
                 <strong>ℹ️ About these plugins</strong>
                 <p>
-                  These are CloudStream repositories for Android. You can browse and discover
-                  what content sources are available. To add a source to <em>this app</em>,
-                  install a <strong>.js plugin</strong> via Manual Install instead.
-                  The JS plugin ecosystem for CloudStream Win is growing — check back for updates.
+                  These are real CloudStream plugins (.cs3). Click <strong>Install</strong> on any plugin
+                  to download and load it via the JVM bridge. The plugin runs using the original
+                  Kotlin code — full compatibility with all CloudStream extensions.
                 </p>
               </div>
             </>
@@ -438,6 +470,39 @@ export default function PluginsPage() {
                 disabled={!urlInput.trim() || !!installing}
               >
                 {installing === urlInput ? "Installing..." : "Install"}
+              </button>
+            </div>
+          </div>
+
+          <div className="divider" />
+
+          <div className="install-section">
+            <h3>Install CloudStream plugin from file (.cs3)</h3>
+            <p className="hint">Select a .cs3 plugin file downloaded from a CloudStream repo.</p>
+            <button className="btn-primary" onClick={installCs3FromFile} disabled={installing === "cs3-file"}>
+              {installing === "cs3-file" ? "Installing..." : "📂 Browse for .cs3 file"}
+            </button>
+          </div>
+
+          <div className="divider" />
+
+          <div className="install-section">
+            <h3>Install CloudStream plugin from URL (.cs3)</h3>
+            <p className="hint">Paste a direct link to a .cs3 plugin file from any CloudStream repo.</p>
+            <div className="url-input-row">
+              <input
+                className="text-input"
+                type="text"
+                value={cs3UrlInput}
+                onChange={e => setCs3UrlInput(e.target.value)}
+                placeholder="https://raw.githubusercontent.com/.../GogoAnime.cs3"
+              />
+              <button
+                className="btn-primary"
+                onClick={() => installCs3FromUrl(cs3UrlInput)}
+                disabled={!cs3UrlInput.trim() || !!installing}
+              >
+                {installing === cs3UrlInput ? "Installing..." : "Install"}
               </button>
             </div>
           </div>
