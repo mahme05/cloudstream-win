@@ -47,7 +47,7 @@ boa_engine = { version = "0.19", features = [] }
 uuid = { version = "1", features = ["v4"] }
 
 # ── Download cancellation ─────────────────────────────────────────────────────
-tokio-util = { version = "0.7", features = ["rt", "sync"] }
+tokio-util = { version = "0.7" }
 
 # ── Error handling ────────────────────────────────────────────────────────────
 anyhow    = "1"

@@ -36,28 +36,14 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "resources": [
-      "resources/cloudstream-bridge.jar",
-      "resources/jre/**"
-    ]
+    "resources": {
+      "resources/cloudstream-bridge.jar": "cloudstream-bridge.jar",
+      "resources/jre": "jre"
+    }
   },
   "plugins": {
     "shell": {
-      "open": true,
-      "scope": [
-        {
-          "name": "java",
-          "cmd":  "java",
-          "args": true,
-          "sidecar": false
-        },
-        {
-          "name":    "java-bundled",
-          "cmd":     "resources/jre/bin/java.exe",
-          "args":    true,
-          "sidecar": false
-        }
-      ]
+      "open": true
     }
   }
 }

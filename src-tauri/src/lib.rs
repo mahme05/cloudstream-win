@@ -64,12 +64,24 @@ pub fn run() {
                 .resource_dir()
                 .expect("Could not resolve resource directory");
 
-            let jar_path  = resource_dir.join("cloudstream-bridge.jar");
+            // In dev mode, resource_dir() resolves to target/debug/ where Tauri
+            // copies a stub. Always use the actual src-tauri/resources/ folder
+            // (known at compile time via CARGO_MANIFEST_DIR) so we get the real
+            // fat JAR built by Gradle. In production the resource_dir is correct.
+            let resources_dir = if cfg!(dev) {
+                std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+                    .join("resources")
+            } else {
+                resource_dir.clone()
+            };
+
+            let jar_path = resources_dir.join("cloudstream-bridge.jar");
+            log::info!("[startup] JAR path: {}", jar_path.display());
 
             // Optional bundled JRE — placed at resources/jre/ by the build script.
             // If absent, the system java on PATH is used instead.
             let jre_path: Option<PathBuf> = {
-                let p = resource_dir.join("jre");
+                let p = resources_dir.join("jre");
                 if p.exists() { Some(p) } else { None }
             };
 
