@@ -99,12 +99,23 @@ export default function PluginsPage() {
     }
   }, [tab]);
 
+  // Map of URL -> friendly label (from DEFAULT_REPOS or saved repo labels)
+  const repoLabels: Record<string, string> = Object.fromEntries(
+    DEFAULT_REPOS.map(r => [r.url, r.label])
+  );
+
+  const applyFriendlyNames = (results: RepoInfo[]) =>
+    results.map(r => ({
+      ...r,
+      name: repoLabels[r.url] || r.name,
+    }));
+
   const loadAllRepos = async (urls: string[]) => {
     setLoadingRepos(true);
     setRepoError("");
     try {
       const results = await invoke<RepoInfo[]>("fetch_repos", { urls });
-      setRepoData(results);
+      setRepoData(applyFriendlyNames(results));
     } catch (e: any) {
       setRepoError("Failed to load some repos: " + String(e));
     } finally {
@@ -115,11 +126,21 @@ export default function PluginsPage() {
   const addRepo = async () => {
     if (!newRepoUrl.trim()) return;
     const url = newRepoUrl.trim();
+
+    // Prevent duplicate repos
+    const allUrls = [...DEFAULT_REPOS.map(r => r.url), ...savedRepos];
+    if (allUrls.includes(url)) {
+      setRepoError("This repo is already added.");
+      setTimeout(() => setRepoError(""), 3000);
+      return;
+    }
+
     setNewRepoUrl("");
     setLoadingRepos(true);
     try {
       const result = await invoke<RepoInfo>("fetch_repo", { url });
-      setRepoData(prev => [...prev, result]);
+      const named = { ...result, name: repoLabels[url] || result.name };
+      setRepoData(prev => [...prev, named]);
       const updated = [...savedRepos, url];
       setSavedRepos(updated);
       localStorage.setItem("saved_repos", JSON.stringify(updated));
@@ -386,14 +407,21 @@ export default function PluginsPage() {
                       </div>
                     </div>
                     <div className="repo-plugin-actions">
-                      <button
-                        className="btn-primary btn-sm"
-                        disabled={!!installing}
-                        onClick={() => plugin.url && installCs3FromUrl(plugin.url)}
-                        title={plugin.url ? "Install this plugin" : "No download URL available"}
-                      >
-                        {installing === plugin.url ? "Installing..." : "Install"}
-                      </button>
+                      {(() => {
+                        const pluginId = (plugin.internalName || plugin.name)
+                          .toLowerCase().replace(/[^a-z0-9]/g, "_");
+                        const isInstalled = plugins.some(p => p.id === pluginId);
+                        return (
+                          <button
+                            className={isInstalled ? "btn-secondary btn-sm" : "btn-primary btn-sm"}
+                            disabled={!!installing || isInstalled}
+                            onClick={() => !isInstalled && plugin.url && installCs3FromUrl(plugin.url)}
+                            title={isInstalled ? "Already installed" : plugin.url ? "Install this plugin" : "No download URL"}
+                          >
+                            {isInstalled ? "✓ Installed" : installing === plugin.url ? "Installing..." : "Install"}
+                          </button>
+                        );
+                      })()}
                     </div>
                   </div>
                 ))}
