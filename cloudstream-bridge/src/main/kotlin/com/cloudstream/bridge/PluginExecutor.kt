@@ -89,10 +89,12 @@ class PluginExecutor(private val registry: PluginRegistry) {
             resp.body?.bytes() ?: throw RuntimeException("Empty response body from $url")
         }
 
+            // Derive a clean name from the URL before creating the temp file
+        val pluginName = url.substringAfterLast("/").removeSuffix(".cs3")
         val tmp = File.createTempFile("cs_plugin_", ".cs3").also { it.deleteOnExit() }
         tmp.writeBytes(bytes)
 
-        loadFromFile(tmp, sourceUrl = url)
+        loadFromFile(tmp, sourceUrl = url, nameHint = pluginName)
     }
 
     // ── loadPluginFromFile ────────────────────────────────────────────────────
@@ -100,17 +102,18 @@ class PluginExecutor(private val registry: PluginRegistry) {
     suspend fun loadPluginFromFile(filePath: String): String = withContext(Dispatchers.IO) {
         val file = File(filePath)
         if (!file.exists()) throw IllegalArgumentException("File not found: $filePath")
-        loadFromFile(file, sourceUrl = filePath)
+        val nameHint = file.nameWithoutExtension
+        loadFromFile(file, sourceUrl = filePath, nameHint = nameHint)
     }
 
     // ── Core loader ───────────────────────────────────────────────────────────
     // Must be called from Dispatchers.IO — URLClassLoader and JarFile do disk I/O.
 
-    private fun loadFromFile(file: File, sourceUrl: String): String {
-        System.err.println("[executor] Loading plugin: ${file.name}")
+    private fun loadFromFile(file: File, sourceUrl: String, nameHint: String = file.nameWithoutExtension): String {
+        System.err.println("[executor] Loading plugin: $nameHint")
 
         val loader   = URLClassLoader(arrayOf(file.toURI().toURL()), javaClass.classLoader)
-        val provider = tryLoadProvider(loader, file) ?: StubProvider(file.nameWithoutExtension)
+        val provider = tryLoadProvider(loader, file) ?: StubProvider(nameHint)
 
         val meta = PluginMeta(
             id             = provider.name.lowercase().replace(Regex("[^a-z0-9]"), "_"),
@@ -139,37 +142,34 @@ class PluginExecutor(private val registry: PluginRegistry) {
 
     private fun tryLoadProvider(loader: URLClassLoader, file: File): CloudstreamProvider? {
         return try {
-            // Strategy 1 — try predictable class name conventions
-            val candidates = listOf(
-                file.nameWithoutExtension,
-                file.nameWithoutExtension + "Provider",
-                "Plugin",
-                "MainPlugin",
-                "Provider",
-            )
-
-            for (name in candidates) {
-                val cls = runCatching { loader.loadClass(name) }.getOrNull() ?: continue
-                val instance = tryInstantiate(cls) ?: continue
-                System.err.println("[executor] Found provider via name '$name'")
-                return instance
+            // Strategy 1 — check JAR manifest for Plugin-Class or Main-Class
+            JarFile(file).use { jar ->
+                val attrs = jar.manifest?.mainAttributes
+                val mainClass = attrs?.getValue("Plugin-Class")
+                    ?: attrs?.getValue("Main-Class")
+                if (mainClass != null) {
+                    val cls = runCatching { loader.loadClass(mainClass) }.getOrNull()
+                    val instance = cls?.let { tryInstantiate(it) }
+                    if (instance != null) {
+                        System.err.println("[executor] Found provider via manifest: $mainClass")
+                        return instance
+                    }
+                }
             }
 
-            // Strategy 2 — read the JAR manifest directly via JarFile.
-            // URLClassLoader.getResourceAsStream("META-INF/MANIFEST.MF") reads from its
-            // entire classpath and returns the bridge's OWN manifest, not the plugin's.
-            // JarFile reads directly from the target file instead.
+            // Strategy 2 — scan every .class in the JAR for a MainAPI subclass
             JarFile(file).use { jar ->
-                val manifest  = jar.manifest ?: return@use
-                val attrs     = manifest.mainAttributes
-                val mainClass = attrs.getValue("Plugin-Class")
-                    ?: attrs.getValue("Main-Class")
-                    ?: return@use
+                val classNames = jar.entries().asSequence()
+                    .filter { it.name.endsWith(".class") && !it.name.contains("$") }
+                    .map { it.name.removeSuffix(".class").replace('/', '.') }
+                    .toList()
 
-                val cls = runCatching { loader.loadClass(mainClass) }.getOrNull() ?: return@use
-                val instance = tryInstantiate(cls) ?: return@use
-                System.err.println("[executor] Found provider via manifest: $mainClass")
-                return instance
+                for (className in classNames) {
+                    val cls = runCatching { loader.loadClass(className) }.getOrNull() ?: continue
+                    val instance = tryInstantiate(cls) ?: continue
+                    System.err.println("[executor] Found provider via scan: $className")
+                    return instance
+                }
             }
 
             System.err.println("[executor] No provider found in ${file.name} — using stub")
